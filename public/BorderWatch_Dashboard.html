@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BorderWatch — System Reference & Multi-Camera Matrix</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0b0f19;
+      color: #cbd5e1;
+      margin: 0;
+      padding: 24px;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border: 1px solid #1e293b;
+      border-left: 5px solid #06b6d4;
+      padding: 20px 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 6px 0; color: #f8fafc; font-size: 24px; }
+    p.subtitle { margin: 0; color: #38bdf8; font-size: 14px; }
+
+    .btn-print {
+      float: right;
+      background-color: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-print:hover { background-color: #0369a1; }
+
+    .module-title {
+      color: #f8fafc;
+      font-size: 18px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 8px;
+      margin: 32px 0 16px 0;
+    }
+
+    details {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: all 0.2s ease-in-out;
+    }
+    details[open] { border-color: #38bdf8; }
+    
+    summary {
+      padding: 14px 18px;
+      font-weight: bold;
+      font-size: 15px;
+      color: #38bdf8;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      background-color: #111827;
+    }
+    summary:hover { background-color: #1e293b; }
+    summary::after { content: "►"; font-size: 12px; transition: transform 0.2s; color: #64748b; }
+    details[open] summary::after { transform: rotate(90deg); color: #38bdf8; }
+    
+    .badge {
+      background: #2e1065;
+      color: #a855f7;
+      border: 1px solid #581c87;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+      margin-right: 12px;
+    }
+
+    .content {
+      padding: 16px 18px;
+      border-top: 1px solid #1f2937;
+      background-color: #0f172a;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .content h4 { margin: 12px 0 4px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+    .content p { margin: 0 0 8px 0; color: #e2e8f0; }
+    .content ul { margin: 4px 0; padding-left: 20px; }
+    .content li { margin-bottom: 4px; }
+
+    /* Controls Bar Styling */
+    .controls-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+      background: #111827;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #1f2937;
+    }
+    .grid-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .grid-btn:hover, .grid-btn.active {
+      background-color: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+    }
+
+    .camera-matrix {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    /* Grid Layout Classes for 30 Cams */
+    .grid-1x30 { grid-template-columns: repeat(1, 1fr); }
+    .grid-2x15 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3x10 { grid-template-columns: repeat(3, 1fr); }
+    .grid-5x6  { grid-template-columns: repeat(5, 1fr); }
+    .grid-6x5  { grid-template-columns: repeat(6, 1fr); }
+    .grid-10x3 { grid-template-columns: repeat(10, 1fr); }
+    .grid-15x2 { grid-template-columns: repeat(15, 1fr); }
+    .grid-30x1 { grid-template-columns: repeat(30, 1fr); }
+
+    .cam-box {
+      background: #000;
+      border: 1px solid #1e293b;
+      border-radius: 4px;
+      aspect-ratio: 16/9;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      min-height: 60px;
+    }
+    .cam-header {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: bold;
+      color: #38bdf8;
+    }
+    .cam-status {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #22c55e;
+    }
+    .cam-placeholder {
+      color: #475569;
+      font-size: 11px;
+      font-family: monospace;
+      text-align: center;
+      padding: 2px;
+    }
+
+    @media print {
+      .btn-print, .controls-bar { display: none; }
+      details { page-break-inside: avoid; }
+      details[open] .content { display: block; }
+      body { background: #fff; color: #000; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <button class="btn-print" onclick="window.print()">📄 Save PDF / Print</button>
+    <h1>BorderWatch System Reference</h1>
+    <p class="subtitle">Collapsible Functionality Guide & 30-Camera View Layouts</p>
+  </header>
+
+  <!-- CAMERA MATRIX SECTION -->
+  <div class="module-title">Live 30-Camera Matrix Layouts</div>
+  
+  <div class="controls-bar">
+    <span style="font-weight: bold; font-size: 12px; color: #94a3b8; margin-right: 4px;">All 30 Cams Layout:</span>
+    <button class="grid-btn active" onclick="setGrid(5, 6, this)">5 × 6 (Default Grid)</button>
+    <button class="grid-btn" onclick="setGrid(6, 5, this)">6 × 5</button>
+    <button class="grid-btn" onclick="setGrid(3, 10, this)">3 × 10</button>
+    <button class="grid-btn" onclick="setGrid(2, 15, this)">2 × 15</button>
+    <button class="grid-btn" onclick="setGrid(10, 3, this)">10 × 3</button>
+    <button class="grid-btn" onclick="setGrid(15, 2, this)">15 × 2</button>
+    <button class="grid-btn" onclick="setGrid(1, 30, this)">1 × 30 (Single Column)</button>
+    <button class="grid-btn" onclick="setGrid(30, 1, this)">30 × 1 (Single Row)</button>
+  </div>
+
+  <div id="cameraGrid" class="camera-matrix grid-5x6"></div>
+
+  <!-- MODULE 1 FUNCTIONS -->
+  <div class="module-title">Module 1: GIS Map Infrastructure (Lead 5)</div>
+
+  <details>
+    <summary>Function 10: Tile Layer Loader <span class="badge">BorderMap.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Renders base map tiles with automatic fallback between local offline tile packages and public OpenStreetMap servers.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 11: Security Zone Overlay <span class="badge">MapZonesOverlay.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Overlay semi-transparent colored polygons over perimeter areas to define restricted or high-risk sectors.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 12: Camera Marker Layer <span class="badge">CameraMarkers.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Plots interactive camera icons with projected Field-of-View (FOV) vision cones onto the map layer.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 13: Live Feed Link Popup <span class="badge">MapFeedLink.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Connects map nodes to video feeds, opening a modal to trigger direct RTSP video streaming.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 14: Patrol Route Layer <span class="badge">PatrolRoutes.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Displays ground soldier locations and planned movement paths with animated direction dashes.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 15: Breach Ping Visualizer <span class="badge">BreachPingOverlay.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Renders expanding radar pulse rings over intrusion coordinates to alert operators.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 16: Journey & Path Tracker <span class="badge">JourneyTracker.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Connects multi-camera target detections into a chronological path trail for suspect interception.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 17: Interactive Layer Controller <span class="badge">MapLayerControl.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Floating toggle box allowing operators to show/hide specific map layers (tiles, zones, FOV, routes).</p>
+    </div>
+  </details>
+
+  <!-- MODULE 2 FUNCTIONS -->
+  <div class="module-title">Module 2: Alerts & Analytics Interface (Lead 6)</div>
+
+  <details>
+    <summary>Function 18: Audit Log Stream <span class="badge">AuditLogStream.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Chronological security event timeline logging motion events, errors, and system warnings in real time.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 19: Audio Siren Engine <span class="badge">AudioSirenEngine.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Generates real-time sound alarms using Web Audio API synthesis without external `.mp3` files.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 20: Radar Sweep Gauge <span class="badge">RadarSweepGauge.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>HTML5 Canvas circular radar displaying 360-degree rotating sweeps and target distance blips.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 21: System Health Monitor <span class="badge">HealthMetricsBar.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Displays CPU, memory load, camera network uptime, and API latency metrics.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 22: Log CSV Exporter <span class="badge">CSVExporter.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Converts JSON event logs into downloadable structured `.csv` spreadsheet records.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 23: Log Filter Toolbar <span class="badge">LogFilterToolbar.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Filter control bar to sort security events by severity level, sector, or custom date range.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 24: Threat Density Heatmap <span class="badge">ThreatHeatmap.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Calculates spatial incident density to project green-to-red breach vulnerability overlays.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Function 25: AI Natural Language Query Panel <span class="badge">AIQueryPanel.tsx</span></summary>
+    <div class="content">
+      <h4>What It Does</h4>
+      <p>Accepts natural text questions (e.g., *"Show breaches near Sector 4"*) to update system filters.</p>
+    </div>
+  </details>
+
+</div>
+
+<script>
+  function buildCameraGrid(count) {
+    const container = document.getElementById('cameraGrid');
+    container.innerHTML = '';
+    
+    for (let i = 1; i <= count; i++) {
+      const camId = i < 10 ? '0' + i : i;
+      const box = document.createElement('div');
+      box.className = 'cam-box';
+      box.innerHTML = `
+        <div class="cam-header">CAM-${camId}</div>
+        <div class="cam-status"></div>
+        <div class="cam-placeholder">CAM ${camId}</div>
+      `;
+      container.appendChild(box);
+    }
+  }
+
+  function setGrid(cols, rows, btnElement) {
+    const container = document.getElementById('cameraGrid');
+    
+    // Set grid class dynamically based on columns x rows
+    container.className = `camera-matrix grid-${cols}x${rows}`;
+
+    if (btnElement) {
+      document.querySelectorAll('.grid-btn').forEach(btn => btn.classList.remove('active'));
+      btnElement.classList.add('active');
+    }
+
+    // Always render all 30 cameras
+    buildCameraGrid(30);
+  }
+
+  // Initial render: Render all 30 cameras in 5 x 6 layout
+  buildCameraGrid(30);
+</script>
+
+</body>
+</html>
