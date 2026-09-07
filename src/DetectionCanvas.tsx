@@ -36,11 +36,13 @@ function DetectionCanvas({ cameraId, videoUrl, zones, setZones, isDrawing, alarm
   const callbackRef = useRef(onBreachDetected);
   const visionRef = useRef(visionMode);
 
-  zonesRef.current = zones;
-  drawingRef.current = isDrawing;
-  alarmRef.current = alarmActive;
-  callbackRef.current = onBreachDetected;
-  visionRef.current = visionMode;
+  useEffect(() => {
+    zonesRef.current = zones;
+    drawingRef.current = isDrawing;
+    alarmRef.current = alarmActive;
+    callbackRef.current = onBreachDetected;
+    visionRef.current = visionMode;
+  }, [zones, isDrawing, alarmActive, onBreachDetected, visionMode]);
 
   const isPointInPolygon = useCallback((point: Point, vertices: Point[]) => {
     let inside = false;
@@ -180,11 +182,13 @@ function DetectionCanvas({ cameraId, videoUrl, zones, setZones, isDrawing, alarm
     return () => cancelAnimationFrame(animationFrame);
   }, [cameraId, isPointInZone]);
 
+  // eslint-disable-next-line react/refs
   const filter = visionRef.current === 'thermal' ? 'contrast(1.8) saturate(2.8) hue-rotate(310deg)' : visionRef.current === 'night' ? 'grayscale(1) sepia(1) hue-rotate(70deg) saturate(4) brightness(.85)' : 'contrast(1.1) saturate(1.15)';
   const isBreached = cameraId === 1 && zones.some((zone) => isPointInZone({ x: 160, y: 150 }, zone));
 
   return <div style={{ position: 'relative', width: '100%', height, overflow: 'hidden' }}>
     <video src={videoUrl} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', filter }} />
+    {/* eslint-disable-next-line react/refs */}
     <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => { mousePosRef.current = null; hoverRef.current = null; }} onMouseUp={commitDrag} onClick={handleCanvasClick} onDoubleClick={handleDoubleClick} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: dragRef.current ? 'grabbing' : isDrawing ? 'crosshair' : 'default' }} />
     <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,8,17,.78)', color: '#67e8f9', padding: '3px 6px', fontSize: 10 }}>CAM-0{cameraId} // LIVE</div>
     {isDrawing && <><div style={{ position: 'absolute', top: 28, left: 8, background: 'rgba(0,8,17,.78)', color: '#d8f9ff', padding: '4px 6px', fontSize: 9, pointerEvents: 'none' }}>Click to add point • Double-click to close</div><div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4 }}><button className="c2-button" onClick={(event) => { event.stopPropagation(); undoPoint(); }}>UNDO POINT</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); completeZone(); }}>COMPLETE ZONE</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); resetZone(); }}>RESET ZONE</button></div></>}

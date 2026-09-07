@@ -8,6 +8,7 @@ import MapZonesOverlay from './MapZonesOverlay';
 import BreachPingOverlay from './BreachPingOverlay';
 import PatrolRoutes from './PatrolRoutes';
 import JourneyTracker from './JourneyTracker';
+import ThreatDensityHeatmap from './ThreatDensityHeatmap';
 
 import { MapLayerControl } from './MapLayerControl';
 import type { MapLayerState } from './MapLayerControl';
@@ -70,6 +71,7 @@ export default function BorderMap({
     patrolRoutes: true,
     gridCoordinates: false,
     topographicTiles: false,
+    threatDensityHeatmap: false,
   });
 
   const handleToggleLayer = (layerKey: keyof MapLayerState) => {
@@ -124,6 +126,7 @@ export default function BorderMap({
       mapRef.current = null;
       setMap(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -226,6 +229,8 @@ useEffect(() => {
       )}
 
       <BreachPingOverlay map={map} alerts={breachAlerts} onDismiss={onDismissBreach} />
+
+      <ThreatDensityHeatmap map={map} active={layers.threatDensityHeatmap} incidents={breachAlerts} />
 
       {layers.patrolRoutes && <PatrolRoutes map={map} routes={patrolRoutes} />}
 

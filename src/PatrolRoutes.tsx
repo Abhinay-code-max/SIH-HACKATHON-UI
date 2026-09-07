@@ -45,7 +45,9 @@ function guardIcon(): L.DivIcon {
 
 function PatrolRoutes({ map, routes }: PatrolRoutesProps) {
   const routesRef = useRef(routes);
-  routesRef.current = routes;
+  useEffect(() => {
+    routesRef.current = routes;
+  }, [routes]);
 
   useEffect(() => {
     if (!map) return;
