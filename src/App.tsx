@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DetectionCanvas from './DetectionCanvas';
 import type { BoundingBox, Point } from './DetectionCanvas';
 
@@ -30,74 +30,11 @@ class FeedErrorBoundary extends React.Component<{ cameraId: number; children: Re
   }
 }
 
-// 🌟 Memoized Tactical Radar to prevent unnecessary re-draws/lag
-const TacticalRadar = memo(({ hasAlert }: { hasAlert: boolean }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
-
-    let angle = 0;
-    let animationId: number;
-
-    const renderRadar = () => {
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, 140, 140);
-
-      // Background rings
-      ctx.strokeStyle = hasAlert ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.25)';
-      ctx.lineWidth = 1;
-      [20, 40, 60].forEach(r => {
-        ctx.beginPath();
-        ctx.arc(70, 70, r, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-
-      // Crosshairs
-      ctx.beginPath();
-      ctx.moveTo(70, 10); ctx.lineTo(70, 130);
-      ctx.moveTo(10, 70); ctx.lineTo(130, 70);
-      ctx.stroke();
-
-      // Rotating Sweep Line
-      angle += 0.05;
-      const x = 70 + 60 * Math.cos(angle);
-      const y = 70 + 60 * Math.sin(angle);
-
-      ctx.beginPath();
-      ctx.moveTo(70, 70);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = hasAlert ? '#ef4444' : '#38bdf8';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      if (hasAlert) {
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(95, 45, 4, 4);
-        ctx.fillRect(40, 90, 4, 4);
-      }
-      ctx.fillStyle = '#10b981';
-      ctx.fillRect(55, 35, 3, 3);
-
-      animationId = requestAnimationFrame(renderRadar);
-    };
-
-    renderRadar();
-    return () => cancelAnimationFrame(animationId);
-  }, [hasAlert]);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(5,16,25,0.8)', padding: '8px', borderRadius: '4px', border: '1px solid #155e75' }}>
-      <div style={{ fontSize: '9px', marginBottom: '4px', color: hasAlert ? '#ef4444' : '#38bdf8', fontWeight: 'bold' }}>
-        {hasAlert ? '⚠️ SECTOR RADAR [ALERT]' : '📡 SECTOR RADAR [NOMINAL]'}
-      </div>
-      <canvas ref={canvasRef} width={140} height={140} style={{ borderRadius: '50%' }} />
-    </div>
-  );
-});
+import { useAudioSiren } from './useAudioSiren';
+import TacticalRadar from './TacticalRadar';
+import AuditLogPanel from './AuditLogPanel';
+import SystemHealthMonitor from './SystemHealthMonitor';
+import { useAuditStore } from './useAuditStore';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'command' | 'map' | 'analytics'>('command');
@@ -144,8 +81,9 @@ export default function App() {
   });
 
   const [isDrawing, setIsDrawing] = useState(false);
+  const { sirenActive, toggleSiren, startSiren, stopSiren } = useAudioSiren();
   const [alarmActive, setAlarmActive] = useState(false);
-  const [audioMuted, setAudioMuted] = useState(false);
+  const { addEvent } = useAuditStore();
   const [incidents, setIncidents] = useState<IncidentLog[]>([]);
   
   const [maximizedCameraId, setMaximizedCameraId] = useState<number | null>(null);
@@ -156,33 +94,12 @@ export default function App() {
   const [visionMode, setVisionMode] = useState<'cyan' | 'thermal' | 'night'>('cyan');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const activeOscillatorsRef = useRef(new Set<OscillatorNode>());
   const reportedBreachesRef = useRef(new Set<string>());
 
-  const playAlertTone = useCallback(() => {
-    if (audioMuted) return;
-    if (!audioContextRef.current) audioContextRef.current = new AudioContext();
-    const context = audioContextRef.current;
-    if (context.state === 'suspended') void context.resume();
-
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const startTime = context.currentTime;
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, startTime);
-    gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
-    gain.gain.linearRampToValueAtTime(0, startTime + 0.2);
-
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    activeOscillatorsRef.current.add(oscillator);
-    oscillator.onended = () => activeOscillatorsRef.current.delete(oscillator);
-    oscillator.start(startTime);
-    oscillator.stop(startTime + 0.25);
-  }, [audioMuted]);
+  // Sync siren with alarmActive setting if triggered
+  useEffect(() => {
+    if (!alarmActive && sirenActive) stopSiren();
+  }, [alarmActive, sirenActive, stopSiren]);
 
   useEffect(() => {
     localStorage.setItem('borderwatch_zones', JSON.stringify(zones));
@@ -202,9 +119,20 @@ export default function App() {
       zoneName: zone.name
     };
 
-    setIncidents(prev => [newIncident, ...prev].slice(0, 30)); // Capped array length prevents memory bloat
-    if (alarmActive) playAlertTone();
-  }, [alarmActive, playAlertTone]);
+    setIncidents(prev => [newIncident, ...prev].slice(0, 30));
+
+    // Emit to Audit Log Store
+    addEvent({
+      severity: box.threatLevel === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
+      category: 'BREACH',
+      message: `Breach detected by CAM-${camId}: ${box.label} in ${zone.name}`,
+      sector: zone.name, // Using zone name as sector equivalent here
+      source: `CAM-${camId}`,
+      metadata: { boxId: box.id }
+    });
+
+    if (alarmActive) startSiren();
+  }, [alarmActive, startSiren, addEvent]);
 
   const currentVisibleCameras = useMemo(() => {
     const start = pageIndex * gridSize;
@@ -212,6 +140,29 @@ export default function App() {
   }, [allCameras, pageIndex, gridSize]);
 
   const totalPages = Math.ceil(totalCameras / gridSize);
+
+  const radarTargets = useMemo(() => incidents.map((inc, i) => ({
+    id: inc.id,
+    angle: (i * 45) % 360,
+    distance: 0.3 + ((i * 7) % 10) * 0.06,
+    label: `CAM-${inc.cameraId}`,
+    severity: (inc.threatLevel === 'CRITICAL' ? 'CRITICAL' : 'WARNING') as any
+  })), [incidents]);
+
+  const [nlQuery, setNlQuery] = useState('');
+  const { parseSecurityQuery } = useAuditStore();
+  const handleNLQuerySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlQuery.trim()) return;
+    try {
+      parseSecurityQuery(nlQuery, ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA']);
+      setNlQuery('');
+      setActiveTab('analytics');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      // Ignore query failures gracefully from toolbar
+    }
+  };
 
   const isDark = theme === 'dark';
   const bgMain = isDark ? '#050811' : '#f1f5f9';
@@ -300,14 +251,24 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
+                <form onSubmit={handleNLQuerySubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginRight: '6px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Show critical..." 
+                    value={nlQuery}
+                    onChange={(e) => setNlQuery(e.target.value)}
+                    style={{ width: '140px', background: isDark ? '#0b1329' : '#fff', border: `1px solid ${borderCol}`, padding: '4px 8px', borderRadius: '3px', color: textColor, fontSize: '10px', outline: 'none' }}
+                  />
+                </form>
+
                 <select value={visionMode} onChange={(e) => setVisionMode(e.target.value as any)} className="c2-button">
                   <option value="cyan">CYAN</option><option value="thermal">THERMAL</option><option value="night">NIGHT</option>
                 </select>
                 <button onClick={() => setAlarmActive(!alarmActive)} className="c2-button" style={{ background: alarmActive ? '#ef4444' : undefined }}>
                   {alarmActive ? 'ALARM ON' : 'ALARM OFF'}
                 </button>
-                <button onClick={() => setAudioMuted(!audioMuted)} className="c2-button">
-                  {audioMuted ? 'UNMUTE' : 'MUTE'}
+                <button onClick={toggleSiren} className="c2-button" style={{ background: sirenActive ? '#ef4444' : undefined, animation: sirenActive ? 'pulse 1s infinite' : 'none' }}>
+                  {sirenActive ? 'STOP SIREN' : 'TEST SIREN'}
                 </button>
                 <button onClick={() => setIsDrawing(!isDrawing)} className="c2-button" style={{ background: isDrawing ? '#f59e0b' : undefined, color: isDrawing ? '#000' : undefined }}>
                   {isDrawing ? 'DONE' : 'GEOFENCE'}
@@ -341,9 +302,11 @@ export default function App() {
                 ))}
               </div>
 
-              {/* SIDEBAR */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <TacticalRadar hasAlert={incidents.length > 0} />
+                <TacticalRadar 
+                  hasAlert={incidents.length > 0} 
+                  targets={radarTargets}
+                />
 
                 <div style={{ background: bgCard, border: `1px solid ${borderCol}`, padding: '10px', borderRadius: '4px' }}>
                   <h3 style={{ fontSize: '12px', margin: '0 0 8px 0', opacity: 0.8 }}>ZONES ({zones.length})</h3>
@@ -395,21 +358,12 @@ export default function App() {
         )}
 
         {activeTab === 'analytics' && (
-          <div style={{ background: bgCard, border: `1px solid ${borderCol}`, padding: '20px', borderRadius: '6px' }}>
-            <h2 style={{ fontSize: '16px', color: '#38bdf8', marginTop: 0 }}>Enterprise Security Analytics</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '12px' }}>
-              <div style={{ background: isDark ? '#0b0f19' : '#f8fafc', padding: '12px', border: `1px solid ${borderCol}`, borderRadius: '4px' }}>
-                <h4 style={{ margin: '0 0 6px 0', color: '#06b6d4', fontSize: '11px' }}>TOTAL CAMERAS</h4>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>30 Units</div>
-              </div>
-              <div style={{ background: isDark ? '#0b0f19' : '#f8fafc', padding: '12px', border: `1px solid ${borderCol}`, borderRadius: '4px' }}>
-                <h4 style={{ margin: '0 0 6px 0', color: '#06b6d4', fontSize: '11px' }}>TOTAL INCIDENTS</h4>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#38bdf8' }}>{incidents.length}</div>
-              </div>
-              <div style={{ background: isDark ? '#0b0f19' : '#f8fafc', padding: '12px', border: `1px solid ${borderCol}`, borderRadius: '4px' }}>
-                <h4 style={{ margin: '0 0 6px 0', color: '#06b6d4', fontSize: '11px' }}>SYSTEM HEALTH</h4>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>100%</div>
-              </div>
+          <div style={{ display: 'flex', gap: '12px', height: 'calc(100vh - 140px)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <AuditLogPanel />
+            </div>
+            <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <SystemHealthMonitor />
             </div>
           </div>
         )}

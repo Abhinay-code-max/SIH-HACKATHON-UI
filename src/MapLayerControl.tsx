@@ -7,6 +7,7 @@ export interface MapLayerState {
   patrolRoutes: boolean;
   gridCoordinates: boolean;
   topographicTiles: boolean;
+  threatDensityHeatmap: boolean;
 }
 
 interface MapLayerControlProps {
@@ -25,6 +26,7 @@ export const MapLayerControl: React.FC<MapLayerControlProps> = React.memo(({
     { key: 'patrolRoutes', label: 'Patrol Routes', icon: '👮' },
     { key: 'gridCoordinates', label: 'Grid Coordinates', icon: '🌐' },
     { key: 'topographicTiles', label: 'Topographic Map', icon: '⛰️' },
+    { key: 'threatDensityHeatmap', label: 'Threat Density Heatmap', icon: '🔥' },
   ];
 
   return (
