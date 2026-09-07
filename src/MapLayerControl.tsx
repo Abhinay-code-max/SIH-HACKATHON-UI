@@ -6,6 +6,7 @@ export interface MapLayerState {
   fovCones: boolean;
   patrolRoutes: boolean;
   gridCoordinates: boolean;
+  topographicTiles: boolean;
 }
 
 interface MapLayerControlProps {
@@ -23,10 +24,22 @@ export const MapLayerControl: React.FC<MapLayerControlProps> = React.memo(({
     { key: 'fovCones', label: 'Camera FOV Cones', icon: '📐' },
     { key: 'patrolRoutes', label: 'Patrol Routes', icon: '👮' },
     { key: 'gridCoordinates', label: 'Grid Coordinates', icon: '🌐' },
+    { key: 'topographicTiles', label: 'Topographic Map', icon: '⛰️' },
   ];
 
   return (
-    <div className="absolute top-4 right-4 z-[1000] w-60 rounded-xl border border-slate-800 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-md">
+    <div style={{
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    zIndex: 1000,
+    width: '240px',
+    background: 'rgba(5, 16, 25, 0.95)',
+    border: '1px solid #155e75',
+    borderRadius: '8px',
+    padding: '10px',
+    color: '#d8f9ff',
+  }}>
       <div className="mb-2 flex items-center justify-between border-b border-slate-800 pb-2">
         <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
           Map Layers
