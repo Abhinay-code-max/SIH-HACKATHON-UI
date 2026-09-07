@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import DetectionCanvas from './DetectionCanvas';
+import GISPanel from './GISPanel';
 import type { BoundingBox, Point } from './DetectionCanvas';
 
 export interface GeofenceZone {
@@ -387,11 +388,16 @@ export default function App() {
         {activeTab === 'map' && (
           <div style={{ background: bgCard, border: `1px solid ${borderCol}`, padding: '20px', borderRadius: '6px' }}>
             <h2 style={{ fontSize: '16px', color: '#38bdf8', marginTop: 0 }}>GIS Sector Map & 30-Node Telemetry</h2>
-            <div style={{ height: '420px', background: isDark ? '#0b0f19' : '#e2e8f0', border: `1px solid ${borderCol}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '22px' }}>🗺️</span>
-              <span>All 30 Camera Nodes Geo-Mapped Successfully</span>
-            </div>
-          </div>
+          <GISPanel
+  onCameraSelect={(cameraId) => {
+    const numericId = Number(cameraId.replace(/\D/g, ''));
+    if (numericId >= 1 && numericId <= 30) {
+      setMaximizedCameraId(numericId);
+      setPipMode(1);
+    }
+  }}
+/>
+</div>
         )}
 
         {activeTab === 'analytics' && (
