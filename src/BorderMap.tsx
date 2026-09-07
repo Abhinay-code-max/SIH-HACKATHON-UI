@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import  { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -34,31 +34,15 @@ interface BorderMapProps {
 }
 
 const DEFAULT_CENTER: L.LatLngExpression = [28.6139, 77.209];
-const OFFLINE_TILE_URL = '/tiles/{z}/{x}/{y}.png';
-const ONLINE_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-class OfflineFirstTileLayer extends L.TileLayer {
-  createTile(coords: L.Coords, done: L.DoneCallback): HTMLImageElement {
-    const tile = document.createElement('img');
-    tile.alt = '';
-    tile.setAttribute('role', 'presentation');
-    const offlineSource = this.getTileUrl(coords);
-    const onlineSource = L.Util.template(ONLINE_TILE_URL, { ...coords, s: 'abc' });
-    let usedOnlineFallback = false;
-    
-    tile.onload = () => done(undefined, tile);
-    tile.onerror = () => {
-      if (usedOnlineFallback) { 
-        done(new Error(`Unable to load map tile ${coords.z}/${coords.x}/${coords.y}`), tile); 
-        return; 
-      }
-      usedOnlineFallback = true;
-      tile.src = onlineSource;
-    };
-    tile.src = offlineSource;
-    return tile;
-  }
-}
+const ONLINE_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const SATELLITE_TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const TOPOGRAPHIC_TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+const GRID_SIZE = 0.01;
+
+
 
 export default function BorderMap({
   cameras,
@@ -85,6 +69,7 @@ export default function BorderMap({
     fovCones: true,
     patrolRoutes: true,
     gridCoordinates: false,
+    topographicTiles: false,
   });
 
   const handleToggleLayer = (layerKey: keyof MapLayerState) => {
@@ -120,11 +105,12 @@ export default function BorderMap({
     });
     mapRef.current = leafletMap;
 
-    new OfflineFirstTileLayer(OFFLINE_TILE_URL, {
-      minZoom: 3,
-      maxZoom: 19,
-      crossOrigin: true,
-    }).addTo(leafletMap);
+  L.tileLayer(ONLINE_TILE_URL, {
+  minZoom: 3,
+  maxZoom: 19,
+}).addTo(leafletMap);
+
+
 
     L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
     setMap(leafletMap);
@@ -138,18 +124,97 @@ export default function BorderMap({
       mapRef.current = null;
       setMap(null);
     };
-  }, [center, zoom]);
+  }, []);
+
+  useEffect(() => {
+  if (!map) return;
+
+  const satelliteLayer = L.tileLayer(SATELLITE_TILE_URL, {
+    minZoom: 3,
+    maxZoom: 19,
+    opacity: 1,
+  });
+
+  if (layers.satelliteTiles) {
+    satelliteLayer.addTo(map);
+  }
+
+  return () => {
+    map.removeLayer(satelliteLayer);
+  };
+}, [map, layers.satelliteTiles]);
+
+useEffect(() => {
+  if (!map) return;
+
+  const topographicLayer = L.tileLayer(TOPOGRAPHIC_TILE_URL, {
+    minZoom: 3,
+    maxZoom: 19,
+    opacity: 1,
+  });
+
+  if (layers.topographicTiles) {
+    topographicLayer.addTo(map);
+  }
+
+  return () => {
+    map.removeLayer(topographicLayer);
+  };
+}, [map, layers.topographicTiles]);
+
+
+useEffect(() => {
+  if (!map || !layers.gridCoordinates) return;
+
+  const gridLayer = L.layerGroup();
+
+  const bounds = map.getBounds();
+  const south = Math.floor(bounds.getSouth() / GRID_SIZE) * GRID_SIZE;
+  const north = Math.ceil(bounds.getNorth() / GRID_SIZE) * GRID_SIZE;
+  const west = Math.floor(bounds.getWest() / GRID_SIZE) * GRID_SIZE;
+  const east = Math.ceil(bounds.getEast() / GRID_SIZE) * GRID_SIZE;
+
+  for (let lat = south; lat <= north; lat += GRID_SIZE) {
+    L.polyline(
+      [[lat, west], [lat, east]],
+      {
+        color: '#38bdf8',
+        weight: 1,
+        opacity: 0.25,
+        interactive: false,
+      }
+    ).addTo(gridLayer);
+  }
+
+  for (let lng = west; lng <= east; lng += GRID_SIZE) {
+    L.polyline(
+      [[south, lng], [north, lng]],
+      {
+        color: '#38bdf8',
+        weight: 1,
+        opacity: 0.25,
+        interactive: false,
+      }
+    ).addTo(gridLayer);
+  }
+
+  gridLayer.addTo(map);
+
+  return () => {
+    map.removeLayer(gridLayer);
+  };
+}, [map, layers.gridCoordinates]);
 
   return (
     <div className={`relative overflow-hidden rounded-sm border border-cyan-900 bg-[#050811] ${className}`}>
       {/* Map Canvas Container */}
-      <div ref={containerRef} className="h-full min-h-[360px] w-full" />
+      <div ref={containerRef} style={{ height: '620px', width: '100%' }} />
 
       {/* Floating Layer Control Panel */}
       <MapLayerControl layers={layers} onToggleLayer={handleToggleLayer} />
 
       {/* Conditional Overlays Controlled by Layer Switches */}
-      <CameraMarkers map={map} cameras={cameras} activeCameraIds={activeCameraIds} />
+      <CameraMarkers map={map} cameras={cameras} activeCameraIds={activeCameraIds} showFovCones={layers.fovCones} />
       
       {layers.securityZones && zones && (
         <MapZonesOverlay

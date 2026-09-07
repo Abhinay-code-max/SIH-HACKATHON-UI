@@ -20,6 +20,7 @@ interface CameraMarkersProps {
   map: L.Map | null;
   cameras: readonly BorderCamera[];
   activeCameraIds?: readonly string[];
+  showFovCones?: boolean;
 }
 
 const EARTH_RADIUS_METERS = 6_371_000;
@@ -67,13 +68,13 @@ function cameraPopup(camera: BorderCamera): HTMLDivElement {
   return card;
 }
 
-function CameraMarkers({ map, cameras, activeCameraIds = [] }: CameraMarkersProps) {
+function CameraMarkers({ map, cameras, activeCameraIds = [], showFovCones = true, }: CameraMarkersProps) {
   useEffect(() => {
     if (!map) return;
     const layerGroup = L.layerGroup().addTo(map);
     cameras.forEach((camera) => {
       const color = camera.status === 'ONLINE' ? '#22d3ee' : '#fb3b4b';
-      L.polygon(fieldOfViewPoints(camera), { color, weight: 1, fillColor: color, fillOpacity: camera.status === 'ONLINE' ? 0.13 : 0.09, interactive: false }).addTo(layerGroup);
+      if (showFovCones){L.polygon(fieldOfViewPoints(camera), { color, weight: 1, fillColor: color, fillOpacity: camera.status === 'ONLINE' ? 0.13 : 0.09, interactive: false }).addTo(layerGroup);}
       L.marker(camera.position, { icon: cameraIcon(camera, activeCameraIds.includes(camera.id)), riseOnHover: true })
         .bindTooltip(`${camera.name} · ${camera.status}`, { direction: 'top', offset: [0, -32], className: 'borderwatch-camera-tooltip' })
         .bindPopup(cameraPopup(camera), { closeButton: false, minWidth: 190 })
@@ -81,7 +82,7 @@ function CameraMarkers({ map, cameras, activeCameraIds = [] }: CameraMarkersProp
         .addTo(layerGroup);
     });
     return () => { layerGroup.remove(); };
-  }, [activeCameraIds, cameras, map]);
+  }, [activeCameraIds, cameras, map, showFovCones]);
 
   return null;
 }
