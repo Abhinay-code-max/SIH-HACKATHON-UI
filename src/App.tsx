@@ -19,6 +19,8 @@ export interface IncidentLog {
   zoneName: string;
 }
 
+const SECTORS = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'];
+
 class FeedErrorBoundary extends React.Component<{ cameraId: number; children: React.ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
@@ -303,6 +305,21 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ background: bgCard, border: `1px solid ${borderCol}`, padding: '10px', borderRadius: '4px' }}>
+                  <h3 style={{ fontSize: '12px', margin: '0 0 8px 0', opacity: 0.8 }}>SECTOR RADAR</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
+                    {SECTORS.map(sec => {
+                      const isBreached = incidents.some(inc => inc.zoneName.toUpperCase().includes(sec) || (inc.threatLevel === 'CRITICAL' && incidents.length > 0));
+                      return (
+                        <div key={sec} style={{ background: isDark ? '#0f172a' : '#f8fafc', padding: '6px', borderRadius: '3px', textAlign: 'center', fontSize: '10px', border: `1px solid ${isBreached ? '#ef4444' : borderCol}` }}>
+                          <div style={{ fontWeight: 'bold' }}>{sec}</div>
+                          <div style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{isBreached ? 'ALERT' : 'SECURE'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <TacticalRadar 
                   hasAlert={incidents.length > 0} 
                   targets={radarTargets}
