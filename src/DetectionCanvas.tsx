@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { GeofenceZone } from './App';
 
 export interface Point { x: number; y: number; }
@@ -35,6 +35,8 @@ function DetectionCanvas({ cameraId, videoUrl, zones, setZones, isDrawing, alarm
   const alarmRef = useRef(alarmActive);
   const callbackRef = useRef(onBreachDetected);
   const visionRef = useRef(visionMode);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     zonesRef.current = zones;
@@ -182,18 +184,68 @@ function DetectionCanvas({ cameraId, videoUrl, zones, setZones, isDrawing, alarm
     return () => cancelAnimationFrame(animationFrame);
   }, [cameraId, isPointInZone]);
 
-  // eslint-disable-next-line react/refs
-  const filter = visionRef.current === 'thermal' ? 'contrast(1.8) saturate(2.8) hue-rotate(310deg)' : visionRef.current === 'night' ? 'grayscale(1) sepia(1) hue-rotate(70deg) saturate(4) brightness(.85)' : 'contrast(1.1) saturate(1.15)';
+  const filter = visionMode === 'thermal' ? 'contrast(1.8) saturate(2.8) hue-rotate(310deg)' : visionMode === 'night' ? 'grayscale(1) sepia(1) hue-rotate(70deg) saturate(4) brightness(.85)' : 'contrast(1.1) saturate(1.15)';
   const isBreached = cameraId === 1 && zones.some((zone) => isPointInZone({ x: 160, y: 150 }, zone));
 
-  return <div style={{ position: 'relative', width: '100%', height, overflow: 'hidden' }}>
-    <video src={videoUrl} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', filter }} />
+  return <div style={{ position: 'relative', width: '100%', height, overflow: 'hidden', backgroundColor: '#020617' }}>
+    <video
+      src={videoUrl}
+      autoPlay
+      loop
+      muted
+      playsInline
+      onLoadedData={() => setVideoLoaded(true)}
+      onError={() => setVideoError(true)}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        filter,
+        opacity: videoLoaded ? 1 : 0,
+        transition: 'opacity 0.25s ease'
+      }}
+    />
+    {!videoLoaded && !videoError && (
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#040d1a',
+        color: '#38bdf8',
+        fontSize: '10px',
+        letterSpacing: '0.08em',
+        gap: '6px',
+        zIndex: 1
+      }}>
+        <div style={{ width: '14px', height: '14px', border: '2px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <span>SIGNAL ACQUIRING...</span>
+      </div>
+    )}
+    {videoError && (
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0a0507',
+        color: '#ef4444',
+        fontSize: '10px',
+        letterSpacing: '0.08em',
+        zIndex: 1
+      }}>
+        FEED UNAVAILABLE
+      </div>
+    )}
     {/* eslint-disable-next-line react/refs */}
-    <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => { mousePosRef.current = null; hoverRef.current = null; }} onMouseUp={commitDrag} onClick={handleCanvasClick} onDoubleClick={handleDoubleClick} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: dragRef.current ? 'grabbing' : isDrawing ? 'crosshair' : 'default' }} />
-    <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,8,17,.78)', color: '#67e8f9', padding: '3px 6px', fontSize: 10 }}>CAM-0{cameraId} // LIVE</div>
-    {isDrawing && <><div style={{ position: 'absolute', top: 28, left: 8, background: 'rgba(0,8,17,.78)', color: '#d8f9ff', padding: '4px 6px', fontSize: 9, pointerEvents: 'none' }}>Click to add point • Double-click to close</div><div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4 }}><button className="c2-button" onClick={(event) => { event.stopPropagation(); undoPoint(); }}>UNDO POINT</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); completeZone(); }}>COMPLETE ZONE</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); resetZone(); }}>RESET ZONE</button></div></>}
-    <div style={{ pointerEvents: 'none', position: 'absolute', left: 0, right: 0, height: 2, background: alarmActive ? '#fb3b4b' : '#22d3ee', opacity: .65, boxShadow: `0 0 14px ${alarmActive ? '#fb3b4b' : '#22d3ee'}`, animation: 'c2-scan 3.2s linear infinite' }} />
-    <div style={{ position: 'absolute', right: 8, bottom: 8, padding: '3px 7px', borderRadius: 999, background: isBreached ? '#dc2626' : '#16a34a', color: '#fff', fontSize: 10, fontWeight: 700 }}>{isBreached ? 'BREACH' : 'CLEAR'}</div>
+    <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => { mousePosRef.current = null; hoverRef.current = null; }} onMouseUp={commitDrag} onClick={handleCanvasClick} onDoubleClick={handleDoubleClick} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: dragRef.current ? 'grabbing' : isDrawing ? 'crosshair' : 'default', zIndex: 2 }} />
+    <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,8,17,.78)', color: '#67e8f9', padding: '3px 6px', fontSize: 10, zIndex: 3 }}>CAM-{String(cameraId).padStart(2, '0')} // LIVE</div>
+    {isDrawing && <><div style={{ position: 'absolute', top: 28, left: 8, background: 'rgba(0,8,17,.78)', color: '#d8f9ff', padding: '4px 6px', fontSize: 9, pointerEvents: 'none', zIndex: 3 }}>Click to add point • Double-click to close</div><div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, zIndex: 3 }}><button className="c2-button" onClick={(event) => { event.stopPropagation(); undoPoint(); }}>UNDO POINT</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); completeZone(); }}>COMPLETE ZONE</button><button className="c2-button" onClick={(event) => { event.stopPropagation(); resetZone(); }}>RESET ZONE</button></div></>}
+
+    <div style={{ position: 'absolute', right: 8, bottom: 8, padding: '3px 7px', borderRadius: 999, background: isBreached ? '#dc2626' : '#16a34a', color: '#fff', fontSize: 10, fontWeight: 700, zIndex: 3 }}>{isBreached ? 'BREACH' : 'CLEAR'}</div>
   </div>;
 }
 

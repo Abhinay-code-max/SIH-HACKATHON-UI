@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -8,5 +10,66 @@ body {
   background-color: #020617;
   color: #f8fafc;
   font-family: monospace;
-  overflow: hidden;
+  /* overflow: hidden removed — was clipping GIS map panel and Audit Log on smaller viewports */
+}
+
+/* ─────────────────────────────────────────────────────────────
+   c2-button — tactical control buttons used throughout the UI.
+   Previously injected dynamically from App.tsx module scope
+   which caused duplicate <style> tags on hot-reload.
+───────────────────────────────────────────────────────────── */
+.c2-button {
+  border: 1px solid #155e75;
+  background: #071923;
+  color: #67e8f9;
+  padding: 5px 8px;
+  font: 700 10px ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 3px;
+}
+.c2-button:hover {
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   c2-scan — scanning line animation for DetectionCanvas feeds.
+   Used via: animation: 'c2-scan 3.2s linear infinite'
+───────────────────────────────────────────────────────────── */
+@keyframes c2-scan {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   pulse — used by the siren button when active.
+───────────────────────────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Leaflet tooltip overrides for tactical styling.
+───────────────────────────────────────────────────────────── */
+.borderwatch-camera-tooltip,
+.borderwatch-zone-label,
+.borderwatch-patrol-tooltip {
+  background: rgba(5, 8, 17, 0.92);
+  border: 1px solid #155e75;
+  color: #d8f9ff;
+  font: 10px ui-monospace, monospace;
+  padding: 3px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.leaflet-tooltip.borderwatch-zone-label {
+  font-size: 9px;
+  background: rgba(5, 8, 17, 0.75);
 }

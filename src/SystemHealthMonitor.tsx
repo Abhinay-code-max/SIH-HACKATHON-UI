@@ -1,14 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Cpu, Database, Network, Clock } from 'lucide-react';
 
-const MetricCard = ({ icon: Icon, title, value, unit, statusColor }: any) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0f172a', padding: '10px 14px', borderRadius: '4px', border: `1px solid ${statusColor}40` }}>
+interface MetricCardProps {
+  icon: any;
+  title: string;
+  value: string | number;
+  unit: string;
+  statusColor: string;
+  isDark?: boolean;
+}
+
+const MetricCard = ({ icon: Icon, title, value, unit, statusColor, isDark = true }: MetricCardProps) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: isDark ? '#0f172a' : '#f8fafc',
+    padding: '10px 14px',
+    borderRadius: '4px',
+    border: `1px solid ${isDark ? `${statusColor}40` : '#cbd5e1'}`
+  }}>
     <Icon color={statusColor} size={20} />
     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' }}>{title}</div>
+      <div style={{ fontSize: '10px', color: isDark ? '#94a3b8' : '#64748b', fontWeight: 'bold' }}>{title}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc' }}>{value}</span>
-        <span style={{ fontSize: '10px', color: '#64748b' }}>{unit}</span>
+        <span style={{ fontSize: '18px', fontWeight: 'bold', color: isDark ? '#f8fafc' : '#0f172a' }}>{value}</span>
+        <span style={{ fontSize: '10px', color: isDark ? '#64748b' : '#94a3b8' }}>{unit}</span>
       </div>
     </div>
     <div style={{ 
@@ -21,7 +38,7 @@ const MetricCard = ({ icon: Icon, title, value, unit, statusColor }: any) => (
   </div>
 );
 
-export default function SystemHealthMonitor() {
+export default function SystemHealthMonitor({ isDark = true }: { isDark?: boolean }) {
   const [cpu, setCpu] = useState(0);
   const [memory, setMemory] = useState(0);
   const [latency, setLatency] = useState(0);
@@ -76,14 +93,18 @@ export default function SystemHealthMonitor() {
     return '#ef4444'; // Red
   };
 
+  const bgContainer = isDark ? 'rgba(5,16,25,.92)' : '#ffffff';
+  const borderCol = isDark ? '#155e75' : '#cbd5e1';
+  const headerColor = isDark ? '#38bdf8' : '#0284c7';
+
   return (
-    <div style={{ background: 'rgba(5,16,25,.92)', border: '1px solid #155e75', padding: '12px', borderRadius: '4px' }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#38bdf8' }}>SYSTEM HEALTH MONITOR</h3>
+    <div style={{ background: bgContainer, border: `1px solid ${borderCol}`, padding: '12px', borderRadius: '4px' }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: '12px', color: headerColor, fontWeight: 'bold', letterSpacing: '0.05em' }}>SYSTEM HEALTH MONITOR</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-        <MetricCard icon={Cpu} title="CORE CPU LOAD" value={cpu} unit="%" statusColor={getStatusColor(cpu)} />
-        <MetricCard icon={Database} title="MEMORY UTILIZATION" value={memory} unit="%" statusColor={getStatusColor(memory)} />
-        <MetricCard icon={Clock} title="API LATENCY" value={latency} unit="ms" statusColor={getStatusColor(latency, true)} />
-        <MetricCard icon={Network} title="NETWORK UPTIME" value={uptime.toFixed(1)} unit="%" statusColor={uptime > 99 ? '#10b981' : '#f59e0b'} />
+        <MetricCard icon={Cpu} title="CORE CPU LOAD" value={cpu} unit="%" statusColor={getStatusColor(cpu)} isDark={isDark} />
+        <MetricCard icon={Database} title="MEMORY UTILIZATION" value={memory} unit="%" statusColor={getStatusColor(memory)} isDark={isDark} />
+        <MetricCard icon={Clock} title="API LATENCY" value={latency} unit="ms" statusColor={getStatusColor(latency, true)} isDark={isDark} />
+        <MetricCard icon={Network} title="NETWORK UPTIME" value={uptime.toFixed(1)} unit="%" statusColor={uptime > 99 ? '#10b981' : '#f59e0b'} isDark={isDark} />
       </div>
     </div>
   );
