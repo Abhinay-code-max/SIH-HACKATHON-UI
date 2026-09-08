@@ -19,11 +19,8 @@ export default function GISPanel({
     <div
       style={{
         width: '100%',
-        height: '620px',
-        border: '1px solid #155e75',
         borderRadius: '6px',
         overflow: 'hidden',
-        background: '#050811',
       }}
     >
       <BorderMap
